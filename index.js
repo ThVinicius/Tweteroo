@@ -5,25 +5,39 @@ const server = express()
 
 server.use(cors())
 
-server.use(
-  express.urlencoded({
-    extended: true
-  })
-)
-
 server.use(express.json())
 
 const users = []
 const tweets = []
 
 server.post('/sign-up', (req, res) => {
-  const user = req.body
+  const { username, avatar } = req.body
 
-  if (validUser(user)) res.sendStatus(400)
+  switch (true) {
+    case username === undefined || avatar === undefined:
+      res.sendStatus(400)
+      return
 
-  users.push(user)
+    case username.trim() === '' || avatar.trim() === '':
+      res.status(400).send('Todos os campos são obrigatórios!')
+      return
 
-  res.status(201).send('OK')
+    case isURL(avatar):
+      res.status(400).send('URL inválido')
+      return
+
+    case username[0] === ' ' || username[username.length - 1] === ' ':
+      res
+        .status(400)
+        .send('Nome do usuário não pode começar ou terminar com espaços vazios')
+      return
+
+    default:
+      users.push(req.body)
+
+      res.status(201).send('OK')
+      return
+  }
 })
 
 server.get('/tweets', (req, res) => {
@@ -43,7 +57,13 @@ server.post('/tweets', (req, res) => {
   const username = req.headers.user
   const tweet = req.body.tweet
 
-  if (username.trim() === '' || tweet.trim === '') res.sendStatus(400)
+  if (tweet === undefined || username === undefined) {
+    return res.sendStatus(400)
+  }
+
+  if (username.trim() === '' || tweet.trim() === '') {
+    return res.status(400).send('Todos os campos são obrigatórios!')
+  }
 
   const post = {
     tweet: tweet,
@@ -51,7 +71,7 @@ server.post('/tweets', (req, res) => {
     avatar: users.find(item => item.username === username).avatar
   }
 
-  tweets.push(post)
+  tweets.unshift(post)
 
   res.status(201).send('OK')
 })
@@ -68,11 +88,8 @@ server.get('/tweets/:USERNAME', (req, res) => {
 
 server.listen(5000)
 
-function validUser({ username, avatar }) {
-  return (
-    username === undefined ||
-    avatar === undefined ||
-    username.trim() === '' ||
-    avatar.search(/(http(s?):)([/|.|\w|\s|-])*\.(?:jpg|jpeg|gif|png)/g) === -1
-  )
+function isURL(avatar) {
+  const regexUrlImage = /(http(s?):)([/|.|\w|\s|-])*\.(?:jpg|jpeg|gif|png)/g
+
+  return regexUrlImage.test(avatar) === false
 }
